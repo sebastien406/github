@@ -1,3 +1,4 @@
+
 const express = require('express');
 const fs = require('fs');
 const app = express();
@@ -9,8 +10,8 @@ const lireJson = (chemin) => {
     const donneesBrutes = fs.readFileSync(chemin, 'utf-8');
     return JSON.parse(donneesBrutes);
   } catch (erreur) {
-    console.error(`Erreur lors de la lecture du fichier ${chemin}:`, erreur);
-    return null; // Retourne null en cas d'erreur de lecture ou de parsing
+    console.error(`Erreur probleme de lecture  ${chemin}:`, erreur);
+    return null;
   }
 };
 
@@ -18,8 +19,8 @@ const ecrireJson = (chemin, donnees) => {
   try {
     fs.writeFileSync(chemin, JSON.stringify(donnees, null, 2));
   } catch (erreur) {
-    console.error(`Erreur lors de l'écriture du fichier ${chemin}:`, erreur);
-    throw erreur; // Re-lance l'erreur pour être capturée par le bloc try-catch de la route
+    console.error(`Erreur prbleme d écriture ${chemin}:`, erreur);
+    throw erreur;
   }
 };
 
@@ -27,105 +28,109 @@ app.get('/', (req, res) => {
   res.send('Bienvenue sur l’API du mini-blog !');
 });
 
-// Routes pour les articles (posts)
+// --- Routes pour les articles (posts) ---
 
-// GET /articles - Liste tous les articles
-app.get('/articles', (req, res, next) => {
+app.get('/articles', (req, res) => {
   try {
     const articles = lireJson('./data/posts.json');
     if (articles) {
       res.json(articles);
     } else {
-      const erreur = new Error('Impossible de récupérer les articles.');
-      erreur.status = 500;
-      next(erreur);
+      res.status(500).send('Désolé, je ne fais rien pour le moment.');
     }
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('ça chie dans la colle.');
   }
 });
 
-// GET /articles/:id - Affiche un article
-app.get('/articles/:id', (req, res, next) => {
+app.get('/articles/:id', (req, res) => {
   try {
     const identifiantArticle = parseInt(req.params.id);
     const articles = lireJson('./data/posts.json');
+
     if (!articles) {
-      const erreur = new Error('Impossible de récupérer les articles.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('Désolé, j ai pas envie.');
+      return;
     }
+
     const article = articles.find(a => a.id === identifiantArticle);
+
     if (article) {
       res.json(article);
     } else {
-      res.status(404).send('Article non trouvé.');
+      res.status(404).send('il n y a rien avec cet ID.');
     }
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('Y a une erreur.');
   }
 });
 
-// POST /articles - Crée un nouvel article
-app.post('/articles', (req, res, next) => {
+app.post('/articles', (req, res) => {
   try {
     const nouvelArticle = req.body;
+
     if (!nouvelArticle || !nouvelArticle.title || !nouvelArticle.content) {
-      return res.status(400).send('Titre et contenu de l\'article sont requis.');
+      res.status(400).send('Il manque u truc.');
+      return;
     }
 
     const articles = lireJson('./data/posts.json');
     if (!articles) {
-      const erreur = new Error('Impossible de récupérer les articles pour l\'ajout.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('je ne lis rien.');
+      return;
     }
 
-    const nouvelId = articles.length > 0 ? Math.max(...articles.map(a => a.id)) + 1 : 1;
+    const nouvelId = articles.length > 0 ? articles[articles.length - 1].id + 1 : 1;
     nouvelArticle.id = nouvelId;
+
     articles.push(nouvelArticle);
     ecrireJson('./data/posts.json', articles);
+
     res.status(201).json(nouvelArticle);
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('Problème .');
   }
 });
 
-// PATCH /articles/:id - Modifie un article existant
-app.patch('/articles/:id', (req, res, next) => {
+app.patch('/articles/:id', (req, res) => {
   try {
     const identifiantArticle = parseInt(req.params.id);
     const misesAJour = req.body;
 
     let articles = lireJson('./data/posts.json');
     if (!articles) {
-      const erreur = new Error('Impossible de récupérer les articles pour la modification.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('Impossible je ne lis rien.');
+      return;
     }
 
     const indexArticle = articles.findIndex(a => a.id === identifiantArticle);
+
     if (indexArticle !== -1) {
-      articles[indexArticle] = { ...articles[indexArticle], ...misesAJour };
+      for (const cle in misesAJour) {
+        articles[indexArticle][cle] = misesAJour[cle];
+      }
+
       ecrireJson('./data/posts.json', articles);
       res.json(articles[indexArticle]);
     } else {
-      res.status(404).send('Article non trouvé.');
+      res.status(404).send('je ne vois rien.');
     }
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('T as merdé.');
   }
 });
 
-// DELETE /articles/:id - Supprime un article
-app.delete('/articles/:id', (req, res, next) => {
+app.delete('/articles/:id', (req, res) => {
   try {
     const identifiantArticle = parseInt(req.params.id);
     let articles = lireJson('./data/posts.json');
     if (!articles) {
-      const erreur = new Error('Impossible de récupérer les articles pour la suppression.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('Gros nul.');
+      return;
     }
 
     const longueurAvantSuppression = articles.length;
@@ -133,70 +138,70 @@ app.delete('/articles/:id', (req, res, next) => {
 
     if (articles.length < longueurAvantSuppression) {
       ecrireJson('./data/posts.json', articles);
-      res.status(204).send(); // No Content
+      res.status(204).send();
     } else {
-      res.status(404).send('Article non trouvé.');
+      res.status(404).send('tu te débrouille.');
     }
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('ça supprime pas.');
   }
 });
 
-// Routes pour les commentaires (comments)
+// --- Routes pour les commentaires (comments) ---
 
-// GET /articles/:id/commentaires - Liste les commentaires d’un article
-app.get('/articles/:id/commentaires', (req, res, next) => {
+app.get('/articles/:id/commentaires', (req, res) => {
   try {
     const identifiantArticle = parseInt(req.params.id);
     const commentaires = lireJson('./data/comments.json');
     if (!commentaires) {
-      const erreur = new Error('Impossible de récupérer les commentaires.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('pas de commentaires.');
+      return;
     }
     const commentairesFiltres = commentaires.filter(c => c.postId === identifiantArticle);
     res.json(commentairesFiltres);
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('T ais vraiment mauvais.');
   }
 });
 
-// POST /articles/:id/commentaires - Ajoute un commentaire
-app.post('/articles/:id/commentaires', (req, res, next) => {
+app.post('/articles/:id/commentaires', (req, res) => {
   try {
     const identifiantArticle = parseInt(req.params.id);
     const nouveauCommentaire = req.body;
+
     if (!nouveauCommentaire || !nouveauCommentaire.content || !nouveauCommentaire.author) {
-      return res.status(400).send('Contenu et auteur du commentaire sont requis.');
+      res.status(400).send('Il manque un truc.');
+      return;
     }
 
     const commentaires = lireJson('./data/comments.json');
     if (!commentaires) {
-      const erreur = new Error('Impossible de récupérer les commentaires pour l\'ajout.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('je ne fais pas les miracles.');
+      return;
     }
 
-    const nouvelId = commentaires.length > 0 ? Math.max(...commentaires.map(c => c.id)) + 1 : 1;
+    const nouvelId = commentaires.length > 0 ? commentaires[commentaires.length - 1].id + 1 : 1;
     nouveauCommentaire.id = nouvelId;
-    nouveauCommentaire.postId = identifiantArticle; // Associe le commentaire à l'article
+    nouveauCommentaire.postId = identifiantArticle;
+
     commentaires.push(nouveauCommentaire);
     ecrireJson('./data/comments.json', commentaires);
     res.status(201).json(nouveauCommentaire);
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('Il y a un probleme chef.');
   }
 });
 
-// DELETE /commentaires/:id - Supprime un commentaire
-app.delete('/commentaires/:id', (req, res, next) => {
+app.delete('/commentaires/:id', (req, res) => {
   try {
     const identifiantCommentaire = parseInt(req.params.id);
     let commentaires = lireJson('./data/comments.json');
     if (!commentaires) {
-      const erreur = new Error('Impossible de récupérer les commentaires pour la suppression.');
-      erreur.status = 500;
-      return next(erreur);
+      res.status(500).send('J ai pas envie.');
+      return;
     }
 
     const longueurAvantSuppression = commentaires.length;
@@ -204,23 +209,17 @@ app.delete('/commentaires/:id', (req, res, next) => {
 
     if (commentaires.length < longueurAvantSuppression) {
       ecrireJson('./data/comments.json', commentaires);
-      res.status(204).send(); // No Content
+      res.status(204).send();
     } else {
-      res.status(404).send('Commentaire non trouvé.');
+      res.status(404).send('je ne sais pas.');
     }
   } catch (erreur) {
-    next(erreur);
+    console.error(erreur);
+    res.status(500).send('Tout fou le camps capitaine.');
   }
-});
-
-// Middleware de gestion des erreurs
-app.use((erreur, req, res, next) => {
-  console.error(erreur.stack); // Log l'erreur pour le débogage
-  res.status(erreur.status || 500).send(erreur.message || 'Une erreur est survenue !');
 });
 
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Serveur lancé sur http://localhost:${PORT}`);
-  
 });
