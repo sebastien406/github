@@ -72,7 +72,7 @@ app.post('/articles', (req, res) => {
     const nouvelArticle = req.body;
 
     if (!nouvelArticle || !nouvelArticle.title || !nouvelArticle.content) {
-      res.status(400).send('Il manque u truc.');
+      res.status(400).send('Il manque un truc.');
       return;
     }
 
